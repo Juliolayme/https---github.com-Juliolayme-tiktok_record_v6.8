@@ -1,4 +1,4 @@
-name: Parallel TikTok Recorder
+name: Parallel 
 
 on:
   workflow_dispatch:
