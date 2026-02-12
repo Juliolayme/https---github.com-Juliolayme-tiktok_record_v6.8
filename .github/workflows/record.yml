@@ -1,0 +1,84 @@
+name: Parallel TikTok Recorder
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-instances:
+    name: Instance ${{ matrix.instance }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        instance: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    env:
+      TOTAL_INSTANCES: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install Python requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/requirements.txt
+
+      - name: Run subset of usernames (instance ${{ matrix.instance }})
+        env:
+          INSTANCE_INDEX: ${{ matrix.instance }}
+          TOTAL_INSTANCES: ${{ env.TOTAL_INSTANCES }}
+        run: |
+          python3 - <<'PY'
+          import os,sys,subprocess
+
+          idx = int(os.environ['INSTANCE_INDEX'])
+          total = int(os.environ['TOTAL_INSTANCES'])
+
+          path = 'src/username.txt'
+          if not os.path.exists(path):
+              print('username.txt not found at', path)
+              sys.exit(0)
+
+          with open(path, 'r', encoding='utf-8') as f:
+              lines = [l.strip() for l in f if l.strip()]
+
+          n = len(lines)
+          if n == 0:
+              print('No usernames found')
+              sys.exit(0)
+
+          # compute chunk size and slice for this instance
+          chunk = (n + total - 1) // total
+          start = idx * chunk
+          end = min(start + chunk, n)
+          subset = lines[start:end]
+
+          if not subset:
+              print(f'Instance {idx} has no usernames (start {start} >= {n})')
+              sys.exit(0)
+
+          users_arg = ','.join(subset)
+          print(f'Instance {idx}: running {len(subset)} users (lines {start}-{end-1})')
+
+          # per-instance output directory
+          output_dir = f'outputs/instance-{idx}'
+          os.makedirs(output_dir, exist_ok=True)
+
+          # run the recorder passing the instance-specific output
+          cmd = ['python3', 'src/main.py', '-mode', 'automatic', '-user', users_arg, '-output', output_dir]
+          print('Executing:', ' '.join(cmd))
+          subprocess.check_call(cmd)
+          PY
+
+      - name: Archive instance outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: instance-${{ matrix.instance }}-artifacts
+          path: outputs/instance-${{ matrix.instance }}
