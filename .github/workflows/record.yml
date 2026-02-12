@@ -70,8 +70,8 @@ jobs:
           output_dir = f'outputs/instance-{idx}'
           os.makedirs(output_dir, exist_ok=True)
 
-          # run the recorder passing the instance-specific output
-          cmd = ['python3', 'src/main.py', '-mode', 'automatic', '-user', users_arg, '-output', output_dir]
+          # run the recorder passing the instance-specific output and disable update check
+          cmd = ['python3', 'src/main.py', '-mode', 'automatic', '-user', users_arg, '-output', output_dir, '-no-update-check']
           print('Executing:', ' '.join(cmd))
           subprocess.check_call(cmd)
           PY
