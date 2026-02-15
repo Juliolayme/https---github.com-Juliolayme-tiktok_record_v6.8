@@ -22,6 +22,14 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
+          
+      - name: Show current Vietnam time
+        run: |
+          echo "UTC time:"
+          date -u
+          echo "Vietnam time:"
+          TZ=Asia/Ho_Chi_Minh date
+
 
       - name: Install ffmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
