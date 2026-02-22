@@ -47,7 +47,7 @@ def split_usernames(usernames, num_lists=10):
 def main():
     args = parse_args()
     output = args.username
-    output_file = "./src/usernames.txt"
+    output_file = "./src/username.txt"
 
     # Đọc usernames từ file TXT
     usernames = load_usernames(output_file)
