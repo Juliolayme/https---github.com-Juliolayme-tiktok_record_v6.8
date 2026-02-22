@@ -23,7 +23,7 @@ def parse_args():
 # Hàm để chạy lệnh bên ngoài (không giới hạn thời gian)
 def run_command(username, output):
     """Chạy subprocess không giới hạn thời gian"""
-    command = f"python3 ./src/main.py -user {username} -mode automatic -output {output} "
+    command = f"python3 ./src/main.py -user {username} -mode automatic -output {output} -no-update-check"
     
     try:
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
