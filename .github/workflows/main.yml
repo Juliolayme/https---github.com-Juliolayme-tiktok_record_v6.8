@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Print VN time
-        run: echo "Run time VN: $(TZ='Asia/Ho_Chi_Minh' date)"
+        run: echo "Workflow started at $(TZ='Asia/Ho_Chi_Minh' date)"
 
       - uses: actions/setup-python@v5
         with:
