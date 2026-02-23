@@ -1,0 +1,46 @@
+name: Single_record
+
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'Nhập tên người dùng'
+        required: true
+        default: 'usernames1'
+
+jobs:
+  capture_screenshots:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+           
+      - name: Print date and time
+        run: echo "Workflow started at $(TZ='Asia/Ho_Chi_Minh' date)"
+        
+      - name: Install dependencies
+        run: pip install -r ./src/requirements.txt
+
+      - name: Update and upgrade packages
+        run: sudo apt-get update && sudo apt-get upgrade -y
+        
+      - name: Install FFmpeg
+        run: sudo apt-get install -y ffmpeg
+        
+      - name: Create user folder
+        run: mkdir -p $GITHUB_WORKSPACE/${{ github.event.inputs.username }}
+
+      - name: Run Selenium script
+        run: python ./src/main.py -user ${{ github.event.inputs.username }} -mode automatic -output $GITHUB_WORKSPACE/${{ github.event.inputs.username }} 
+        
+      - name: Archive screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ github.event.inputs.username }}
+          path: $GITHUB_WORKSPACE/${{ github.event.inputs.username }}
