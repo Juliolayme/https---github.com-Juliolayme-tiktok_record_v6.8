@@ -1,0 +1,44 @@
+name: Process Videos
+
+on:
+  workflow_run:
+    workflows: ["YT 3"]
+    types: [completed]
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # tải toàn bộ artifact từ workflow trước
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all_videos
+
+      # clone tool remove music
+      - name: Clone video tool
+        run: git clone https://github.com/asaah18/video-music-remover.git tool
+
+      - name: Install dependencies
+        run: pip install -r tool/requirements.txt
+
+      # xử lý song song
+      - name: Process videos parallel
+        run: |
+          mkdir output
+          find all_videos -name "*.mp4" > list.txt
+          
+          cat list.txt | xargs -I {} -P $(nproc) bash -c '
+            name=$(basename "{}")
+            python tool/remove_music.py "{}" "output/$name"
+          '
+
+      - name: Upload processed videos
+        uses: actions/upload-artifact@v4
+        with:
+          name: processed_videos
+          path: output
