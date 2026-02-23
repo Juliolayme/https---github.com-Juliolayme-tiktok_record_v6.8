@@ -3,7 +3,7 @@ name: Process Videos
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["YT 3"]
+    workflows: ["YT 2"]
     types: [completed]
 
 jobs:
