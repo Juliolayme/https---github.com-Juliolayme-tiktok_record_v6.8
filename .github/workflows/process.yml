@@ -1,6 +1,7 @@
 name: Process Videos
 
 on:
+  workflow_dispatch:
   workflow_run:
     workflows: ["YT 3"]
     types: [completed]
