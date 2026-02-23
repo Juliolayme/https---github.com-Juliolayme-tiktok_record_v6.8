@@ -1,0 +1,61 @@
+name: YT 3
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 23,6,12 * * *'
+
+run-name: YT2 run #${{ github.run_number }}
+
+jobs:
+  capture_screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    continue-on-error: true
+
+    env:
+      TIME: ${{ github.run_id }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        usersname:
+          - usernames1
+          - usernames2
+          - usernames3
+          - usernames4
+          - usernames5
+          - usernames6
+          - usernames7
+          - usernames8
+          - usernames9
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print VN time
+        run: echo "Run time VN: $(TZ='Asia/Ho_Chi_Minh' date)"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install -r ./src/requirements.txt
+
+      - name: Create user folder
+        run: mkdir -p $GITHUB_WORKSPACE/${{ matrix.usersname }}
+
+      - name: Run script
+        run: python ./src/main4.py -username ${{ matrix.usersname }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.usersname }}_${{ env.TIME }}
+          path: ${{ matrix.usersname }}
