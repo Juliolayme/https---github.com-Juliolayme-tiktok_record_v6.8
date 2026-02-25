@@ -36,7 +36,7 @@ jobs:
         run: mkdir -p $GITHUB_WORKSPACE/${{ github.event.inputs.username }}
 
       - name: Run Selenium script
-        run: python ./src/main.py -user ${{ github.event.inputs.username }} -mode automatic -output $GITHUB_WORKSPACE/${{ github.event.inputs.username }} 
+        run: python ./src/main.py -user ${{ github.event.inputs.username }} -mode automatic -output $GITHUB_WORKSPACE/${{ github.event.inputs.username }} -no-update-check 
         
       - name: Archive screenshots
         uses: actions/upload-artifact@v4
