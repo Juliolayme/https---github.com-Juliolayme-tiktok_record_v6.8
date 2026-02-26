@@ -14,23 +14,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Tự động lấy artifact mới nhất từ YT 2 bằng GitHub CLI (Bỏ qua trạng thái Cancelled/Failed)
+      # Tự động lấy artifact mới nhất từ YT 2 (Chỉ lấy các lần chạy bị Cancelled)
       - name: Download artifacts from YT 2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. Tìm ID của lần chạy mới nhất từ workflow "YT 2" (Không lọc theo status)
-          RUN_ID=$(gh run list --workflow "YT 2" --limit 1 --json databaseId --jq '.[0].databaseId')
-          echo "Found latest Run ID: $RUN_ID"
+          # 1. Tìm ID của lần chạy mới nhất từ workflow "YT 2" có trạng thái 'cancelled'
+          RUN_ID=$(gh run list --workflow "YT 2" --status cancelled --limit 1 --json databaseId --jq '.[0].databaseId')
+          echo "Found latest Cancelled Run ID: $RUN_ID"
           
-          # 2. Kiểm tra nếu không tìm thấy ID thì dừng lại
+          # 2. Kiểm tra nếu không tìm thấy ID thì báo lỗi và dừng
           if [ -z "$RUN_ID" ]; then
-            echo "Lỗi: Không tìm thấy lần chạy nào của YT 2."
+            echo "Lỗi: Không tìm thấy lần chạy Cancelled nào của YT 2."
             exit 1
           fi
           
           # 3. Tải toàn bộ artifacts của lần chạy đó về thư mục all_videos
-          # Thêm || true để không bị lỗi nếu workflow kia bị huỷ quá sớm chưa kịp có file
           gh run download $RUN_ID --dir all_videos || true
 
       - name: Install FFmpeg + tool
@@ -45,7 +44,7 @@ jobs:
       - name: Process videos (parallel)
         run: |
           mkdir -p output
-          mkdir -p all_videos # Đảm bảo thư mục luôn tồn tại để tránh lỗi shell lệnh find
+          mkdir -p all_videos # Đảm bảo thư mục luôn tồn tại
           find all_videos -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" \) > list.txt
 
           cat list.txt | xargs -I {} -P $(nproc) bash -c '
