@@ -20,22 +20,22 @@ jobs:
         with:
           path: all_videos
 
-      # clone tool remove music
-      - name: Clone video tool
-        run: git clone https://github.com/asaah18/video-music-remover.git tool
+      - name: Install FFmpeg + tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          pip install video-music-remover
 
-      - name: Install dependencies
-        run: pip install -r tool/requirements.txt
+      - name: Health check
+        run: video-music-remover health-check
 
-      # xử lý song song
-      - name: Process videos parallel
+      - name: Process videos (parallel)
         run: |
           mkdir output
-          find all_videos -name "*.mp4" > list.txt
-          
+          find all_videos -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" \) > list.txt
+
           cat list.txt | xargs -I {} -P $(nproc) bash -c '
-            name=$(basename "{}")
-            python tool/remove_music.py "{}" "output/$name"
+            video-music-remover remove-music "{}" output/ --delete-original
           '
 
       - name: Upload processed videos
