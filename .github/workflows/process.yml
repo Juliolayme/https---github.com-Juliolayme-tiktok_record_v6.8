@@ -14,13 +14,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Sử dụng action bên thứ 3 để tự động lấy artifact mới nhất từ YT 2
+      # Tự động lấy artifact mới nhất từ YT 2 bằng GitHub CLI (Bỏ qua trạng thái Cancelled/Failed)
       - name: Download artifacts from YT 2
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: record2.yml # Tên file workflow của bạn (bạn cũng có thể dùng workflow: "YT 2")
-          path: all_videos
-          workflow_conclusion: success # Đảm bảo chỉ lấy artifact từ những lần YT 2 chạy thành công (tránh lấy file lỗi)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. Tìm ID của lần chạy mới nhất từ workflow "YT 2" (Không lọc theo status)
+          RUN_ID=$(gh run list --workflow "YT 2" --limit 1 --json databaseId --jq '.[0].databaseId')
+          echo "Found latest Run ID: $RUN_ID"
+          
+          # 2. Kiểm tra nếu không tìm thấy ID thì dừng lại
+          if [ -z "$RUN_ID" ]; then
+            echo "Lỗi: Không tìm thấy lần chạy nào của YT 2."
+            exit 1
+          fi
+          
+          # 3. Tải toàn bộ artifacts của lần chạy đó về thư mục all_videos
+          # Thêm || true để không bị lỗi nếu workflow kia bị huỷ quá sớm chưa kịp có file
+          gh run download $RUN_ID --dir all_videos || true
 
       - name: Install FFmpeg + tool
         run: |
@@ -34,7 +45,7 @@ jobs:
       - name: Process videos (parallel)
         run: |
           mkdir -p output
-          mkdir -p all_videos # Đảm bảo thư mục luôn tồn tại để tránh lỗi shell
+          mkdir -p all_videos # Đảm bảo thư mục luôn tồn tại để tránh lỗi shell lệnh find
           find all_videos -type f \( -name "*.mp4" -o -name "*.mkv" -o -name "*.webm" \) > list.txt
 
           cat list.txt | xargs -I {} -P $(nproc) bash -c '
