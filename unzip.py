@@ -4,89 +4,96 @@ import subprocess
 import zipfile
 import time
 
+# --- CẤU HÌNH ---
+SCAN_INTERVAL = 10 
+
 def run_cmd(command):
-    """Chạy lệnh CMD và trả về kết quả"""
+    """Chạy lệnh hệ thống"""
     return subprocess.run(command, shell=True, capture_output=True, text=True)
 
 def install_tools():
-    """Kiểm tra và cài đặt FFmpeg qua Chocolatey"""
-    print("--- DANG KIEM TRA HE THONG ---")
-    
-    # 1. Kiểm tra FFmpeg đã có chưa
-    check_ffmpeg = run_cmd("ffmpeg -version")
-    if check_ffmpeg.returncode == 0:
-        print("[OK] FFmpeg da san sang.")
+    """Tự động cài FFmpeg qua Choco nếu chưa có"""
+    print("--- [1] KIỂM TRA HỆ THỐNG ---")
+    if run_cmd("ffmpeg -version").returncode == 0:
+        print("[OK] FFmpeg đã sẵn sàng.")
         return
 
-    print("[!] Khong tim thay FFmpeg. Dang tien hanh cai dat...")
-
-    # 2. Kiểm tra Chocolatey đã có chưa
-    check_choco = run_cmd("choco -v")
-    if check_choco.returncode != 0:
-        print("[*] Dang cai dat Chocolatey (trinh quan ly goi)...")
-        install_choco_cmd = (
-            "@"
-            'powershell -NoProfile -ExecutionPolicy Bypass -Command '
-            '"iex ((New-Object System.Net.WebClient).DownloadString(\'https://community.chocolatey.org/install.ps1\'))" '
-            '&& SET "PATH=%PATH%;%ALLUSERSPROFILE%\\chocolatey\\bin"'
+    print("[!] Không tìm thấy FFmpeg. Đang kiểm tra Chocolatey...")
+    if run_cmd("choco -v").returncode != 0:
+        print("[*] Đang cài đặt Chocolatey...")
+        install_choco = (
+            "powershell -NoProfile -ExecutionPolicy Bypass -Command "
+            "\"iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))\""
         )
-        run_cmd(install_choco_cmd)
+        run_cmd(install_choco)
+        # Cập nhật môi trường tạm thời để dùng choco ngay
+        os.environ["PATH"] += os.pathsep + os.path.join(os.environ["ALLUSERSPROFILE"], 'chocolatey', 'bin')
 
-    # 3. Cài đặt FFmpeg bằng Choco
-    print("[*] Dang cai dat FFmpeg qua Choco...")
-    # --yes để tự động đồng ý các điều khoản
-    result = run_cmd("choco install ffmpeg --yes")
-    
-    if result.returncode == 0:
-        print("[OK] Cai dat FFmpeg thanh cong! Vui long khoi dong lai script neu lenh ffmpeg chua nhan.")
-    else:
-        print(f"[LOI] Khong the cai dat: {result.stderr}")
+    print("[*] Đang cài đặt FFmpeg qua Choco (Vui lòng đợi)...")
+    run_cmd("choco install ffmpeg --yes")
+    print("[OK] Cài đặt hoàn tất. Nếu lệnh 'ffmpeg' lỗi, hãy chạy lại CMD bằng quyền Admin.")
 
-def process_video(file_path):
-    """Lách bản quyền âm thanh"""
+def fix_audio_copyright(file_path):
+    """Lách bản quyền âm thanh bằng FFmpeg"""
     temp_output = file_path + "_fixed.mp4"
-    print(f"  [XU LY] -> {os.path.basename(file_path)}")
+    print(f"    [FFMPEG] Đang xử lý: {os.path.basename(file_path)}")
     
-    # Công thức lách âm thanh: Pitch + Speed
+    # Công thức lách: Đổi pitch 3% và giữ nguyên tốc độ video
     cmd = f'ffmpeg -y -i "{file_path}" -af "asetrate=44100*1.03,aresample=44100,atempo=1.0/1.03" -vcodec copy "{temp_output}"'
     
     try:
-        subprocess.run(cmd, shell=True, check=True, capture_output=True)
-        os.replace(temp_output, file_path)
-        print("  [OK] Da ghi de file sach.")
+        res = subprocess.run(cmd, shell=True, capture_output=True)
+        if res.returncode == 0:
+            os.replace(temp_output, file_path)
+            print(f"    [DONE] Đã fix xong: {os.path.basename(file_path)}")
+        else:
+            print(f"    [ERROR] FFmpeg lỗi: {res.stderr}")
     except Exception as e:
-        print(f"  [LOI] FFmpeg: {e}")
+        print(f"    [CRITICAL] Lỗi hệ thống: {e}")
 
-def main():
-    # Chạy cài đặt trước
-    install_tools()
-    
+def scan_and_process():
+    """Quét thư mục A và tất cả thư mục con (B, C...)"""
     root_dir = os.getcwd()
-    print(f"\n--- DANG THEO DOI THU MUC: {root_dir} ---")
+    print(f"\n--- [2] ĐANG THEO DÕI TOÀN BỘ THƯ MỤC: {root_dir} ---")
 
     while True:
-        for filename in os.listdir(root_dir):
-            if filename.lower().endswith(".zip"):
-                zip_path = os.path.join(root_dir, filename)
-                extract_dir = os.path.join(root_dir, os.path.splitext(filename)[0])
-                
-                try:
-                    print(f"\n[ZIP] Phat hien: {filename}")
-                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                        zip_ref.extractall(extract_dir)
+        # os.walk sẽ đi sâu vào mọi thư mục con (như thư mục B của bạn)
+        for foldername, subfolders, filenames in os.walk(root_dir):
+            for filename in filenames:
+                file_path = os.path.join(foldername, filename)
+
+                # 1. Phát hiện file ZIP
+                if filename.lower().endswith(".zip"):
+                    # Không giải nén các file zip của hệ thống/ffmpeg nếu lỡ tay để vào
+                    if "ffmpeg" in filename.lower(): continue
+
+                    extract_dir = os.path.join(foldername, os.path.splitext(filename)[0])
+                    print(f"\n[PHÁT HIỆN ZIP] Tại: {foldername}")
                     
-                    for root, dirs, files in os.walk(extract_dir):
-                        for f in files:
-                            if f.lower().endswith(".mp4"):
-                                process_video(os.path.join(root, f))
-                    
-                    os.remove(zip_path)
-                    print(f"[DONE] Da xu ly xong va xoa ZIP.")
-                except Exception as e:
-                    print(f"[LOI] {e}")
-        
-        time.sleep(10)
+                    try:
+                        with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                            zip_ref.extractall(extract_dir)
+                        print(f"  -> Giải nén thành công vào: {os.path.basename(extract_dir)}")
+
+                        # 2. Quét MP4 bên trong thư mục vừa giải nén
+                        for sub_root, _, sub_files in os.walk(extract_dir):
+                            for f in sub_files:
+                                if f.lower().endswith(".mp4"):
+                                    fix_audio_copyright(os.path.join(sub_root, f))
+                        
+                        # 3. Xóa file ZIP sau khi xử lý xong
+                        os.remove(file_path)
+                        print(f"[OK] Đã xóa file ZIP gốc: {filename}")
+                    except Exception as e:
+                        print(f"[LOI] Không thể xử lý file ZIP {filename}: {e}")
+
+        time.sleep(SCAN_INTERVAL)
 
 if __name__ == "__main__":
-    # Kiem tra quyen Admin (can thiet de cai choco/ffmpeg)
-    main()
+    # Nhắc nhở chạy quyền Admin
+    print("LƯU Ý: Vui lòng chạy CMD/PowerShell bằng quyền ADMINISTRATOR.")
+    install_tools()
+    try:
+        scan_and_process()
+    except KeyboardInterrupt:
+        print("\n--- ĐÃ DỪNG TOOL ---")
