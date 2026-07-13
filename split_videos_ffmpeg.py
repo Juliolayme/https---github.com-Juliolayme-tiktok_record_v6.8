@@ -2,7 +2,7 @@ import os
 import subprocess
 
 # --- Cấu hình ---
-CHUNK_DURATION = 130  # thời lượng mỗi đoạn (giây)
+CHUNK_DURATION = 300  # thời lượng mỗi đoạn (giây)
 OUTPUT_DIR = "output_ffmpeg"
 
 def run_ffmpeg(cmd):
