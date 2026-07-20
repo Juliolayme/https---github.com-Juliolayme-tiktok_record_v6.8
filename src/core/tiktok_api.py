@@ -16,7 +16,10 @@ class TikTokAPI:
         self.WEBCAST_URL = 'https://webcast.tiktok.com'
 
         self.http_client = HttpClient(proxy, cookies).req
-        self._http_client_stream = HttpClient(proxy, cookies).req_stream
+        # Use the curl_cffi (browser-impersonated) client for the stream
+        # download too. TikTok's pull CDN now blocks plain `requests`
+        # (no TLS fingerprint), which produced empty 0-byte recordings.
+        self._http_client_stream = HttpClient(proxy, cookies).req
 
     def _is_authenticated(self) -> bool:
         response = self.http_client.get(f'{self.BASE_URL}/foryou')

@@ -4,43 +4,71 @@ on:
   workflow_dispatch:
     inputs:
       username:
-        description: 'Nhập tên người dùng'
+        description: 'TikTok username (khong can @)'
         required: true
-        default: 'usernames1'
+        default: 'tiktok'
+      mode:
+        description: 'Recording mode (manual | automatic)'
+        required: true
+        default: 'manual'
+      duration:
+        description: 'Thoi luong record (giay). De trong = khong gioi han'
+        required: false
+        default: '300'
 
 jobs:
-  capture_screenshots:
+  record:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
-           
-      - name: Print date and time
+          python-version: '3.11'
+
+      - name: Print start time
         run: echo "Workflow started at $(TZ='Asia/Ho_Chi_Minh' date)"
-        
-      - name: Install dependencies
-        run: pip install -r ./src/requirements.txt
 
-      - name: Update and upgrade packages
-        run: sudo apt-get update && sudo apt-get upgrade -y
-        
       - name: Install FFmpeg
-        run: sudo apt-get install -y ffmpeg
-        
-      - name: Create user folder
-        run: mkdir -p $GITHUB_WORKSPACE/${{ github.event.inputs.username }}
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Run Selenium script
-        run: python ./src/main.py -user ${{ github.event.inputs.username }} -mode automatic -output $GITHUB_WORKSPACE/${{ github.event.inputs.username }} -no-update-check 
-        
-      - name: Archive screenshots
-        uses: actions/upload-artifact@v4
+      - name: Install Python requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ./src/requirements.txt
+
+      - name: Ensure config JSON files exist
+        run: |
+          if [ ! -f src/cookies.json ]; then echo '{}' > src/cookies.json; fi
+          if [ ! -f src/telegram.json ]; then echo '{}' > src/telegram.json; fi
+
+      - name: Prepare output folder
+        run: mkdir -p "$GITHUB_WORKSPACE/output"
+
+      - name: Record live
+        run: |
+          DURATION_ARG=""
+          if [ -n "${{ github.event.inputs.duration }}" ]; then
+            DURATION_ARG="-duration ${{ github.event.inputs.duration }}"
+          fi
+          python ./src/main.py \
+            -user "${{ github.event.inputs.username }}" \
+            -mode "${{ github.event.inputs.mode }}" \
+            -output "$GITHUB_WORKSPACE/output/" \
+            -no-update-check \
+            $DURATION_ARG
+
+      - name: List recorded files (kiem tra dung luong)
         if: always()
+        run: ls -lh "$GITHUB_WORKSPACE/output/" || echo "No output folder"
+
+      - name: Upload recording
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.inputs.username }}
-          path: $GITHUB_WORKSPACE/${{ github.event.inputs.username }}
+          name: recording-${{ github.event.inputs.username }}
+          path: ${{ github.workspace }}/output/
+          if-no-files-found: warn

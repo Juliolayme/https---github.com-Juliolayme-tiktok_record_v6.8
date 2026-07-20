@@ -16,6 +16,10 @@ from utils.enums import Mode, Error, TimeOut, TikTokError
 
 class TikTokRecorder:
 
+    # Recordings smaller than this are treated as empty/garbage and removed
+    # (a real live stream produces far more than this within seconds).
+    MIN_VALID_RECORDING_BYTES = 100 * 1024  # 100 KB
+
     def __init__(
         self,
         url,
@@ -254,6 +258,25 @@ class TikTokRecorder:
                     out_file.flush()
 
         logger.info(f"Recording finished: {output}\n")
+
+        # Discard empty/garbage recordings: if the stream returned no real
+        # data (e.g. CDN blocked the download) the file is 0 bytes / tiny.
+        # Skip conversion & upload and remove it so it doesn't pile up.
+        try:
+            file_size = os.path.getsize(output)
+        except OSError:
+            file_size = 0
+
+        if file_size < TikTokRecorder.MIN_VALID_RECORDING_BYTES:
+            logger.info(
+                f"Discarding empty recording ({file_size} bytes): {output}"
+            )
+            try:
+                os.remove(output)
+            except OSError:
+                pass
+            return
+
         VideoManagement.convert_flv_to_mp4(output)
 
         if self.use_telegram:
