@@ -1,0 +1,42 @@
+name: Check cookies
+
+on:
+  workflow_dispatch:
+    inputs:
+      username:
+        description: 'TikTok username de test lookup (de trong = lay dong dau src/username.txt)'
+        required: false
+        default: ''
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r src/requirements.txt
+
+      - name: Write cookies from secret
+        env:
+          TIKTOK_COOKIES: ${{ secrets.TIKTOK_COOKIES }}
+        run: |
+          mkdir -p src
+          if [ -z "$TIKTOK_COOKIES" ]; then
+            echo "FAIL: secret TIKTOK_COOKIES is not set on this repository"
+            exit 1
+          fi
+          printf '%s' "$TIKTOK_COOKIES" > src/cookies.json
+
+      - name: Check cookies
+        env:
+          CHECK_USERNAME: ${{ github.event.inputs.username }}
+        run: python .github/scripts/check_cookies.py

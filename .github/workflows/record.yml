@@ -40,9 +40,16 @@ jobs:
           pip install -r src/requirements.txt
 
       - name: Ensure config JSON files exist
+        env:
+          TIKTOK_COOKIES: ${{ secrets.TIKTOK_COOKIES }}
         run: |
           mkdir -p src
-          if [ ! -f src/cookies.json ]; then echo '{}' > src/cookies.json; fi
+          if [ -n "$TIKTOK_COOKIES" ]; then
+            printf '%s' "$TIKTOK_COOKIES" > src/cookies.json
+          else
+            echo "WARNING: secret TIKTOK_COOKIES is empty, running without cookies"
+            echo '{}' > src/cookies.json
+          fi
           if [ ! -f src/telegram.json ]; then echo '{}' > src/telegram.json; fi
 
       - name: Run subset of usernames (instance ${{ matrix.instance }})
