@@ -52,6 +52,13 @@ jobs:
           fi
           if [ ! -f src/telegram.json ]; then echo '{}' > src/telegram.json; fi
 
+      # Non-blocking: a failed login only logs a warning, recording still runs.
+      - name: Check TikTok login
+        continue-on-error: true
+        env:
+          CHECK_SKIP_LOOKUP: '1'
+        run: python .github/scripts/check_cookies.py
+
       - name: Run subset of usernames (instance ${{ matrix.instance }})
         env:
           INSTANCE_INDEX: ${{ matrix.instance }}

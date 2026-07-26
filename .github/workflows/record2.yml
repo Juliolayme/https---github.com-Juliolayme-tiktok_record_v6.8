@@ -46,6 +46,26 @@ jobs:
       - name: Install FFmpeg
         run: sudo apt-get install -y ffmpeg
         
+      - name: Ensure config JSON files exist
+        env:
+          TIKTOK_COOKIES: ${{ secrets.TIKTOK_COOKIES }}
+        run: |
+          mkdir -p src
+          if [ -n "$TIKTOK_COOKIES" ]; then
+            printf '%s' "$TIKTOK_COOKIES" > src/cookies.json
+          else
+            echo "WARNING: secret TIKTOK_COOKIES is empty, running without cookies"
+            echo '{}' > src/cookies.json
+          fi
+          if [ ! -f src/telegram.json ]; then echo '{}' > src/telegram.json; fi
+
+      # Non-blocking: a failed login only logs a warning, recording still runs.
+      - name: Check TikTok login
+        continue-on-error: true
+        env:
+          CHECK_SKIP_LOOKUP: '1'
+        run: python .github/scripts/check_cookies.py
+
       - name: Create user folders
         run: mkdir -p $GITHUB_WORKSPACE/${{ matrix.usersname }}
 
